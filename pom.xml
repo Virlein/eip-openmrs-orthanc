@@ -52,7 +52,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
-    <lombok.version>1.18.30</lombok.version>
+    <lombok.version>1.18.34</lombok.version>
     <eip.client.version>2.4.0-SNAPSHOT</eip.client.version>
     <openmrs.watcher.version>4.3.0-SNAPSHOT</openmrs.watcher.version>
     <camel.openmrs.fhir.version>4.3.0-SNAPSHOT</camel.openmrs.fhir.version>
@@ -332,6 +332,21 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.15.0</version>
+        <configuration>
+            <release>17</release>
+            <annotationProcessorPaths>
+                <path>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                    <version>${lombok.version}</version>
+                </path>
+            </annotationProcessorPaths>
+        </configuration>
       </plugin>
     </plugins>
   </build>

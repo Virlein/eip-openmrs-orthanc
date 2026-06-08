@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancConfig;
+import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
 import com.ozonehis.eip.openmrs.orthanc.models.series.Series;
 import java.io.IOException;
 import java.util.HashMap;
@@ -31,12 +32,18 @@ public class OrthancImagingStudyHandler {
     @Autowired
     private OrthancConfig orthancConfig;
 
-    public byte[] fetchStudyBinaryData(String studyUrl) throws IOException {
-        Request request = new Request.Builder()
-                .header("Authorization", orthancConfig.authHeader())
-                .url(studyUrl)
-                .build();
+    @Autowired
+    private OrthancTokenProvider orthancTokenProvider;
 
+    public byte[] fetchStudyBinaryData(String studyUrl) throws IOException {
+        String token = orthancTokenProvider.getToken();
+        Request.Builder requestBuilder = new Request.Builder().url(studyUrl);
+        if (token != null) {
+            requestBuilder.header("token", token);
+        } else {
+            requestBuilder.header("Authorization", orthancConfig.authHeader());
+        }
+        Request request = requestBuilder.build();
         OkHttpClient client = new OkHttpClient();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {

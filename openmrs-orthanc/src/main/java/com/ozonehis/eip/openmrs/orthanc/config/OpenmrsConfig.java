@@ -53,10 +53,7 @@ public class OpenmrsConfig {
         }
         String auth = getOpenmrsUsername() + ":" + getOpenmrsPassword();
         byte[] encodedAuth = Base64.encodeBase64(auth.getBytes());
-        if (isOauthEnabled()) {
-            return "Bearer " + tokenCache.getTokenInfo().getAccessToken();
-        } else {
-            return "Basic " + new String(encodedAuth);
-        }
+        return "Basic " + new String(encodedAuth);
+        
     }
 }

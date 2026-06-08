@@ -26,7 +26,7 @@ public class OpenmrsAttachmentHandler {
 
     private static final String ATTACHMENT_FHIR_ENDPOINT = "%s/ws/rest/v1/attachment";
 
-    private static final String ORTHANC_VIEWER_BASE_URL = "%s/stone-webviewer/index.html?study=%s";
+    private static final String ORTHANC_VIEWER_BASE_URL = "%s/ui/app/index.html?study=%s";
 
     @Value("${orthanc.publicUrl}")
     private String orthancPublicUrl;

@@ -9,6 +9,7 @@ package com.ozonehis.eip.openmrs.orthanc.routes.series;
 
 import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancConfig;
+import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -26,6 +27,9 @@ public class GetSeriesRoute extends RouteBuilder {
     @Autowired
     private OrthancConfig orthancConfig;
 
+    @Autowired
+    private OrthancTokenProvider orthancTokenProvider;
+
     private static final String GET_SERIES_ENDPOINT = "/series/";
 
     @Override
@@ -36,9 +40,8 @@ public class GetSeriesRoute extends RouteBuilder {
                 .routeId("orthanc-get-series-route")
                 .setHeader(Constants.CAMEL_HTTP_METHOD, constant(Constants.GET))
                 .setHeader(Constants.CONTENT_TYPE, constant(Constants.APPLICATION_JSON))
-                .setHeader(Constants.AUTHORIZATION, constant(orthancConfig.authHeader()))
-                .toD(orthancConfig.getOrthancBaseUrl() + GET_SERIES_ENDPOINT + "${header." + Constants.HEADER_SERIES_ID
-                        + "}")
+                .setHeader("token", method(orthancTokenProvider, "getToken"))
+                .toD(orthancConfig.getOrthancBaseUrl() + GET_SERIES_ENDPOINT + "${header." + Constants.HEADER_SERIES_ID + "}")
                 .end();
         // spotless:on
     }

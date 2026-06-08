@@ -33,7 +33,7 @@ class GetSeriesRouteTest extends CamelSpringTestSupport {
         orthancConfig.setOrthancUsername("orthanc");
         orthancConfig.setOrthancPassword("orthanc");
         orthancConfig.setOrthancBaseUrl("http://localhost:8889/");
-        return new GetSeriesRoute(orthancConfig);
+        return new GetSeriesRoute(orthancConfig, new com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider());
     }
 
     @Override

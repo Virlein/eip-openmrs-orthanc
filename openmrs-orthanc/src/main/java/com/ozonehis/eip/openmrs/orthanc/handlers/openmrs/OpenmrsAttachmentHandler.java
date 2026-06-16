@@ -26,7 +26,7 @@ public class OpenmrsAttachmentHandler {
 
     private static final String ATTACHMENT_FHIR_ENDPOINT = "%s/ws/rest/v1/attachment";
 
-    private static final String ORTHANC_VIEWER_BASE_URL = "%s/ui/app/index.html?study=%s";
+    private static final String ORTHANC_VIEWER_BASE_URL = "%s/ui/app/index.html?study=%s&orthancId=%s";
 
     @Value("${orthanc.publicUrl}")
     private String orthancPublicUrl;
@@ -35,10 +35,10 @@ public class OpenmrsAttachmentHandler {
     private OpenmrsConfig openmrsConfig;
 
     // TODO: Use Apache Camel Route instead of okhttp3 (Error: payload content too big)
-    public void saveAttachment(byte[] binaryData, String patientID, String studyID) throws IOException {
+    public void saveAttachment(byte[] binaryData, String patientID, String studyID, String orthancInternalId) throws IOException {
         MultipartBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("fileCaption", String.format(ORTHANC_VIEWER_BASE_URL, orthancPublicUrl, studyID))
+                .addFormDataPart("fileCaption", String.format(ORTHANC_VIEWER_BASE_URL, orthancPublicUrl, studyID, orthancInternalId))
                 .addFormDataPart("patient", patientID)
                 .addFormDataPart(
                         "file", "radiology-image.png", RequestBody.create(binaryData, MediaType.parse("image/png")))

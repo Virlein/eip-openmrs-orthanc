@@ -41,4 +41,17 @@ public class OpenmrsObsHandler {
         AttachmentObs results = new ObjectMapper().readValue(response, AttachmentObs.class);
         return results.getResults();
     }
+
+    public List<Attachment> getAllObsByConceptUUID(
+            ProducerTemplate producerTemplate, String conceptID) throws JsonProcessingException {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put(Constants.HEADER_OPENMRS_OBS_CONCEPT_UUID, conceptID);
+        headers.put(Constants.CAMEL_HTTP_METHOD, Constants.GET);
+        headers.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+        headers.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+        String response = producerTemplate.requestBodyAndHeaders(
+                "direct:orthanc-get-all-openmrs-obs-route", null, headers, String.class);
+        AttachmentObs results = new ObjectMapper().readValue(response, AttachmentObs.class);
+        return results.getResults();
+    }
 }

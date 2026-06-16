@@ -42,5 +42,16 @@ public class GetObsByConceptIDRoute extends RouteBuilder {
                         + "&patient=" + "${header." + Constants.HEADER_OPENMRS_PATIENT_UUID + "}")
                 .end();
         // spotless:on
+
+        from("direct:orthanc-get-all-openmrs-obs-route")
+                .log(LoggingLevel.INFO, "Fetching all AttachmentObs from OpenMRS by concept...")
+                .routeId("orthanc-get-all-openmrs-obs-route")
+                .setHeader(Constants.CAMEL_HTTP_METHOD, constant(Constants.GET))
+                .setHeader(Constants.CONTENT_TYPE, constant(Constants.APPLICATION_JSON))
+                .setHeader(Constants.AUTHORIZATION, constant(openmrsConfig.authHeader()))
+                .toD(openmrsConfig.getOpenmrsBaseUrl() + GET_OBS_ENDPOINT
+                        + "${header." + Constants.HEADER_OPENMRS_OBS_CONCEPT_UUID + "}")
+                .end();
+        // spotless:on
     }
 }

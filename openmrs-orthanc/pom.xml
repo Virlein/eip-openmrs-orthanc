@@ -96,6 +96,9 @@
                     <exclude>META-INF/MANIFEST.MF</exclude>
                     <exclude>META-INF/okio.kotlin_module</exclude>
                     <exclude>META-INF.versions.9.module-info</exclude>
+                    <exclude>logback.xml</exclude>
+                    <exclude>logback.xml</exclude>
+                    <exclude>logback-test.xml</exclude>
                   </excludes>
                 </filter>
               </filters>

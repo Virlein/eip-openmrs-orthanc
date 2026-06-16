@@ -7,7 +7,9 @@
  */
 package com.ozonehis.eip.openmrs.orthanc.routes;
 
+import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.ozonehis.eip.openmrs.orthanc.converters.ResourceConverter;
+import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyDeletionProcessor;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyProcessor;
 import lombok.Setter;
 import org.apache.camel.LoggingLevel;
@@ -23,19 +25,31 @@ public class ImagingStudyRouting extends RouteBuilder {
     private ImagingStudyProcessor imagingStudyProcessor;
 
     @Autowired
+    private ImagingStudyDeletionProcessor imagingStudyDeletionProcessor;
+
+    @Autowired
     private ResourceConverter resourceConverter;
 
     @Override
     public void configure() {
         getContext().getTypeConverterRegistry().addTypeConverters(resourceConverter);
         // spotless:off
-        from("scheduler:studyUpdate?initialDelay=10000&delay=10000")// TODO: Make initialDelay and delay configurable
+        from("scheduler:studyUpdate?initialDelay=10000&delay=10000")
             .routeId("poll-orthanc")
             .log(LoggingLevel.INFO, "Polling ImagingStudy started...")
             .to("direct:orthanc-get-studies-route")
             .process(imagingStudyProcessor)
             .log(LoggingLevel.INFO, "Polling ImagingStudy completed.")
-                .end();
+            .end();
+
+        from("scheduler:studyDeletion?initialDelay=15000&delay=10000")
+            .routeId("poll-orthanc-changes")
+            .log(LoggingLevel.INFO, "Polling Orthanc changes started...")
+            .setHeader(Constants.HEADER_CHANGES_SINCE, simple("${exchangeProperty.orthanc.changes.cursor}"))
+            .to("direct:orthanc-get-changes-route")
+            .process(imagingStudyDeletionProcessor)
+            .log(LoggingLevel.INFO, "Polling Orthanc changes completed.")
+            .end();
         // spotless:on
     }
 }

@@ -33,4 +33,5 @@ public class Constants {
     public static final String HEADER_IMAGING_STUDY_ID = "orthanc.imaging.study.id";
 
     public static final String HEADER_SERIES_ID = "orthanc.series.id";
+    public static final String HEADER_CHANGES_SINCE = "orthanc.changes.since";
 }

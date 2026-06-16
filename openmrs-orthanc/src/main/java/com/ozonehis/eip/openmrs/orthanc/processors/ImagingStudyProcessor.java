@@ -73,7 +73,7 @@ public class ImagingStudyProcessor implements Processor {
                         && !doesObsExists(
                                 producerTemplate,
                                 openmrsPatient.getIdPart(),
-                                study.getId())) {
+                                study.getImagingStudyMainDicomTags().getStudyInstanceUID())) {
                     createAttachment(
                             study,
                             openmrsPatient.getIdPart(),
@@ -96,7 +96,8 @@ public class ImagingStudyProcessor implements Processor {
             openmrsAttachmentHandler.saveAttachment(
                     orthancStudyBinaryData,
                     patientUUID,
-                    study.getId());
+                    study.getImagingStudyMainDicomTags().getStudyInstanceUID(),
+                    study.id);
         }
     }
 
@@ -109,7 +110,7 @@ public class ImagingStudyProcessor implements Processor {
         List<Attachment> attachmentList =
                 openmrsObsHandler.getObsByPatientUUIDAndConceptUUID(producerTemplate, patientUUID, attachmentConceptId);
         for (Attachment attachment : attachmentList) {
-            if (attachment.getComment().contains(imagingStudyID)) {
+            if (attachment.getComment() != null && attachment.getComment().contains(imagingStudyID)) {
                 return true;
             }
         }

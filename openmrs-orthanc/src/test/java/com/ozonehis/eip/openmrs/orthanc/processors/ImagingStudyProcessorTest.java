@@ -93,7 +93,7 @@ class ImagingStudyProcessorTest extends BaseProcessorTest {
 
         // Assert
         assertEquals(exchange.getMessage().getHeader(HEADER_FHIR_EVENT_TYPE), "c");
-        verify(openmrsAttachmentHandler, times(1)).saveAttachment(any(), any(), any());
+        verify(openmrsAttachmentHandler, times(1)).saveAttachment(any(), any(), any(), any());
     }
 
     @Test
@@ -115,7 +115,7 @@ class ImagingStudyProcessorTest extends BaseProcessorTest {
         assertEquals(exchange.getMessage().getHeader(HEADER_FHIR_EVENT_TYPE), "c");
         verify(orthancImagingStudyHandler, times(0)).getSeriesByID(any(), any());
         verify(orthancImagingStudyHandler, times(0)).fetchStudyBinaryData(any());
-        verify(openmrsAttachmentHandler, times(0)).saveAttachment(any(), any(), any());
+        verify(openmrsAttachmentHandler, times(0)).saveAttachment(any(), any(), any(), any());
     }
 
     @Test
@@ -143,7 +143,7 @@ class ImagingStudyProcessorTest extends BaseProcessorTest {
         // Assert
         assertEquals(exchange.getMessage().getHeader(HEADER_FHIR_EVENT_TYPE), "c");
         verify(orthancImagingStudyHandler, times(0)).fetchStudyBinaryData(any());
-        verify(openmrsAttachmentHandler, times(0)).saveAttachment(any(), any(), any());
+        verify(openmrsAttachmentHandler, times(0)).saveAttachment(any(), any(), any(), any());
     }
 
     private Series getSeries() throws JsonProcessingException {

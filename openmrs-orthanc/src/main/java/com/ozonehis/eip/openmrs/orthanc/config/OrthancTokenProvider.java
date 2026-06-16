@@ -23,16 +23,16 @@ import java.util.Map;
 @Component
 public class OrthancTokenProvider {
 
-    @Value("${oauth.access.token.uri:}")
+    @Value("${OAUTH_ACCESS_TOKEN_URL:}")
     private String tokenUrl;
 
-    @Value("${oauth.client.id:}")
+    @Value("${OAUTH_CLIENT_ID:}")
     private String clientId;
 
-    @Value("${oauth.client.secret:}")
+    @Value("${OAUTH_CLIENT_SECRET:}")
     private String clientSecret;
 
-    @Value("${orthanc.oauth.enabled:false}")
+    @Value("${ORTHANC_OAUTH_ENABLED:false}")
     private boolean oauthEnabled;
 
     private String cachedToken;

@@ -1,2 +1,5 @@
 *.dcm
 *.dcm
+target/
+*.jar
+*.class

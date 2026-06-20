@@ -1,0 +1,12 @@
+com/ozonehis/eip/openmrs/orthanc/routes/series/GetSeriesRouteTest$1.class
+com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyProcessorTest.class
+com/ozonehis/eip/openmrs/orthanc/routes/imagingStudy/GetStudiesRouteTest.class
+com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsPatientHandlerTest.class
+com/ozonehis/eip/openmrs/orthanc/handlers/orthanc/OrthancImagingStudyHandlerTest.class
+com/ozonehis/eip/openmrs/orthanc/routes/obs/GetObsByConceptIDRouteTest$1.class
+com/ozonehis/eip/openmrs/orthanc/routes/obs/GetObsByConceptIDRouteTest.class
+com/ozonehis/eip/openmrs/orthanc/processors/BaseProcessorTest.class
+com/ozonehis/eip/openmrs/orthanc/routes/imagingStudy/GetStudiesRouteTest$1.class
+com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsObsHandlerTest.class
+com/ozonehis/eip/openmrs/orthanc/Utils.class
+com/ozonehis/eip/openmrs/orthanc/routes/series/GetSeriesRouteTest.class

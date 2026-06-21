@@ -258,6 +258,97 @@ public class OpenmrsDiagnosticReportHandler {
         return observationUUID;
     }
 
+
+    /**
+     * Update a DiagnosticReport and its linked Observation with SR report content.
+     */
+    public void updateDiagnosticReportWithSR(
+            ProducerTemplate producerTemplate,
+            String patientUUID,
+            String reportUUID,
+            String srText) throws JsonProcessingException {
+
+        // Step 1: get existing DiagnosticReport to find linked observation and encounter
+        Map<String, Object> getHeaders = new HashMap<>();
+        getHeaders.put(Constants.CAMEL_HTTP_METHOD, Constants.GET);
+        getHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+        getHeaders.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+        getHeaders.put(Constants.HEADER_DIAGNOSTIC_REPORT_UUID, reportUUID);
+
+        String reportJson = producerTemplate.requestBodyAndHeaders(
+                "direct:openmrs-update-diagnostic-report-route", null, getHeaders, String.class);
+
+        Map<?, ?> reportMap = new ObjectMapper().readValue(reportJson, Map.class);
+        String encounterRef = reportMap.containsKey("encounter")
+                ? ((Map<?, ?>) reportMap.get("encounter")).get("reference").toString().replace("Encounter/", "")
+                : null;
+
+        // Step 2: find existing linked observation UUID
+        String observationUUID = null;
+        if (reportMap.containsKey("result")) {
+            List<?> results = (List<?>) reportMap.get("result");
+            if (!results.isEmpty()) {
+                Map<?, ?> firstResult = (Map<?, ?>) results.get(0);
+                observationUUID = firstResult.get("reference").toString().replace("Observation/", "");
+            }
+        }
+
+        // Step 3: update or create observation with SR text
+        if (observationUUID != null) {
+            // Update existing observation
+            String updateObsJson = String.format(
+                    "{\"resourceType\":\"Observation\"," +
+                    "\"id\":\"%s\"," +
+                    "\"status\":\"final\"," +
+                    "\"code\":{\"coding\":[{\"code\":\"%s\"}]}," +
+                    "\"subject\":{\"reference\":\"Patient/%s\"}," +
+                    "\"encounter\":{\"reference\":\"Encounter/%s\"}," +
+                    "\"effectiveDateTime\":\"%s\"," +
+                    "\"valueString\":\"%s\"}",
+                    observationUUID,
+                    Constants.GENERAL_PATIENT_NOTE_CONCEPT_UUID,
+                    patientUUID,
+                    encounterRef,
+                    java.time.LocalDate.now().toString(),
+                    srText.replace("\"", "\\\"").replace("\n", "\\n"));
+
+            Map<String, Object> updateObsHeaders = new HashMap<>();
+            updateObsHeaders.put(Constants.CAMEL_HTTP_METHOD, "PUT");
+            updateObsHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+            updateObsHeaders.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+            updateObsHeaders.put(Constants.HEADER_OBSERVATION_UUID, observationUUID);
+
+            producerTemplate.requestBodyAndHeaders(
+                    "direct:openmrs-update-observation-route", updateObsJson, updateObsHeaders, String.class);
+            log.info("Updated Observation {} with SR content for DiagnosticReport {}", observationUUID, reportUUID);
+        }
+
+        // Step 4: update DiagnosticReport status to final with conclusion
+        String updateReportJson = String.format(
+                "{\"resourceType\":\"DiagnosticReport\"," +
+                "\"id\":\"%s\"," +
+                "\"status\":\"final\"," +
+                "\"code\":{\"coding\":[{\"code\":\"%s\"}]}," +
+                "\"subject\":{\"reference\":\"Patient/%s\"}," +
+                "\"encounter\":{\"reference\":\"Encounter/%s\"}," +
+                "\"conclusion\":\"%s\"}",
+                reportUUID,
+                "27fe6714-0bc6-4435-adb0-818538abe42c",
+                patientUUID,
+                encounterRef,
+                srText.replace("\"", "\\\"").replace("\n", "\\n"));
+
+        Map<String, Object> updateReportHeaders = new HashMap<>();
+        updateReportHeaders.put(Constants.CAMEL_HTTP_METHOD, "PUT");
+        updateReportHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+        updateReportHeaders.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+        updateReportHeaders.put(Constants.HEADER_DIAGNOSTIC_REPORT_UUID, reportUUID);
+
+        producerTemplate.requestBodyAndHeaders(
+                "direct:openmrs-update-diagnostic-report-route", updateReportJson, updateReportHeaders, String.class);
+        log.info("Updated DiagnosticReport {} with SR conclusion", reportUUID);
+    }
+
     /**
      * Delete a DiagnosticReport by its UUID.
      */

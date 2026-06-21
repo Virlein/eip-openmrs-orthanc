@@ -46,6 +46,24 @@ public class ProcessedStudyRepository {
         return count != null && count > 0;
     }
 
+
+    public String[] findByOrthancStudyId(String orthancStudyId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT patient_uuid, diagnostic_report_uuid FROM eip_processed_orthanc_study WHERE orthanc_study_id = ?",
+                (rs, rowNum) -> new String[]{rs.getString("patient_uuid"), rs.getString("diagnostic_report_uuid")},
+                orthancStudyId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public void delete(String orthancStudyId) {
+        jdbcTemplate.update(
+            "DELETE FROM eip_processed_orthanc_study WHERE orthanc_study_id = ?",
+            orthancStudyId);
+        log.info("Deleted processed study {}", orthancStudyId);
+    }
     public void save(String orthancStudyId, String patientUUID, String diagnosticReportUUID) {
         jdbcTemplate.update(
             "INSERT IGNORE INTO eip_processed_orthanc_study (orthanc_study_id, patient_uuid, diagnostic_report_uuid) VALUES (?, ?, ?)",

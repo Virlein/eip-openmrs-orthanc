@@ -34,6 +34,7 @@ public class Constants {
 
     public static final String HEADER_SERIES_ID = "orthanc.series.id";
     public static final String HEADER_CHANGES_SINCE = "orthanc.changes.since";
+    public static final String HEADER_SR_CHANGES_SINCE = "orthanc.sr.changes.since";
     public static final String HEADER_DIAGNOSTIC_REPORT_UUID = "openmrs.diagnostic.report.uuid";
     public static final String GENERAL_PATIENT_NOTE_CONCEPT_UUID = "9dc2962b-bdd0-4261-b69d-55769e078be0";
     public static final String HEADER_OBSERVATION_UUID = "openmrs.observation.uuid";

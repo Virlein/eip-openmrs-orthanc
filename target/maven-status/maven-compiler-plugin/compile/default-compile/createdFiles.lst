@@ -1,5 +1,6 @@
 com/ozonehis/eip/openmrs/orthanc/models/diagnosticreport/DiagnosticReportResource$Reference.class
 com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyProcessor.class
+com/ozonehis/eip/openmrs/orthanc/processors/ImagingSRProcessor.class
 com/ozonehis/eip/openmrs/orthanc/routes/ImagingStudyRouting.class
 com/ozonehis/eip/openmrs/orthanc/repository/ProcessedStudyRepository.class
 com/ozonehis/eip/openmrs/orthanc/models/diagnosticreport/DiagnosticReportResource$Attachment.class

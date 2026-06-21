@@ -42,6 +42,7 @@ public class ImagingStudyDeletionProcessor implements Processor {
 
             if (changes == null || changes.isEmpty()) {
                 exchange.getMessage().setHeader(Constants.HEADER_CHANGES_SINCE, lastSeq);
+                exchange.setProperty("orthanc.changes.cursor", lastSeq);
                 return;
             }
 

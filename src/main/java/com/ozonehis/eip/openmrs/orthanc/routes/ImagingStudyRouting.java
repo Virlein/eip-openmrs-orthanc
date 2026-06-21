@@ -80,6 +80,14 @@ public class ImagingStudyRouting extends RouteBuilder {
             .routeId("openmrs-search-diagnostic-reports-by-id")
             .toD(openmrsBaseUrl + "/ws/fhir2/R4/DiagnosticReport?identifier=${header.orthanc.study.id}")
             .end();
+        from("direct:openmrs-create-observation-route")
+            .routeId("openmrs-create-observation")
+            .toD(openmrsBaseUrl + "/ws/fhir2/R4/Observation")
+            .end();
+        from("direct:openmrs-update-diagnostic-report-route")
+            .routeId("openmrs-update-diagnostic-report")
+            .toD(openmrsBaseUrl + "/ws/fhir2/R4/DiagnosticReport/${header.openmrs.diagnostic.report.uuid}")
+            .end();
         from("direct:openmrs-create-encounter-route")
             .routeId("openmrs-create-encounter")
             .toD(openmrsBaseUrl + "/ws/rest/v1/encounter")

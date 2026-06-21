@@ -170,7 +170,92 @@ public class OpenmrsDiagnosticReportHandler {
         processedStudyRepository.save(orthancId, patientUUID, reportUUID);
         log.info("Created DiagnosticReport for patient {} study {} encounter {}",
                 patientUUID, studyInstanceUID, encounterUUID);
+
+        // Step 4: create linked Observation with viewer URL (makes report visible in Results tab)
+        if (reportUUID != null) {
+            createObservationAndLinkToReport(
+                    producerTemplate, patientUUID, encounterUUID, reportUUID, viewerUrl, studyDate);
+        }
+
         return reportUUID;
+    }
+
+
+    /**
+     * Create a text Observation with the Stone viewer URL and link it to the DiagnosticReport.
+     * This makes the study visible in the OpenMRS O3 Results tab.
+     */
+    public String createObservationAndLinkToReport(
+            ProducerTemplate producerTemplate,
+            String patientUUID,
+            String encounterUUID,
+            String reportUUID,
+            String viewerUrl,
+            String studyDate) throws JsonProcessingException {
+
+        // Step 1: create Observation with viewer URL as valueString
+        String effectiveDate = studyDate != null && studyDate.length() == 8
+                ? studyDate.substring(0, 4) + "-" + studyDate.substring(4, 6) + "-" + studyDate.substring(6, 8)
+                : java.time.LocalDate.now().toString();
+
+        String observationJson = String.format(
+                "{\"resourceType\":\"Observation\"," +
+                "\"status\":\"final\"," +
+                "\"code\":{\"coding\":[{\"code\":\"%s\"}]}," +
+                "\"subject\":{\"reference\":\"Patient/%s\"}," +
+                "\"encounter\":{\"reference\":\"Encounter/%s\"}," +
+                "\"effectiveDateTime\":\"%s\"," +
+                "\"valueString\":\"%s\"}",
+                Constants.GENERAL_PATIENT_NOTE_CONCEPT_UUID,
+                patientUUID,
+                encounterUUID,
+                effectiveDate,
+                "DICOM study available. View at: " + viewerUrl);
+
+        Map<String, Object> obsHeaders = new HashMap<>();
+        obsHeaders.put(Constants.CAMEL_HTTP_METHOD, Constants.POST);
+        obsHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+        obsHeaders.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+
+        String obsResponse = producerTemplate.requestBodyAndHeaders(
+                "direct:openmrs-create-observation-route", observationJson, obsHeaders, String.class);
+
+        String observationUUID = null;
+        try {
+            Map<?, ?> obsResult = new ObjectMapper().readValue(obsResponse, Map.class);
+            observationUUID = (String) obsResult.get("id");
+            log.info("Created Observation {} for patient {}", observationUUID, patientUUID);
+        } catch (Exception e) {
+            log.warn("Could not parse Observation UUID from response: {}", e.getMessage());
+            return null;
+        }
+
+        // Step 2: update DiagnosticReport to link the Observation as result
+        String updateJson = String.format(
+                "{\"resourceType\":\"DiagnosticReport\"," +
+                "\"id\":\"%s\"," +
+                "\"status\":\"final\"," +
+                "\"code\":{\"coding\":[{\"code\":\"%s\"}]}," +
+                "\"subject\":{\"reference\":\"Patient/%s\"}," +
+                "\"encounter\":{\"reference\":\"Encounter/%s\"}," +
+                "\"result\":[{\"reference\":\"Observation/%s\"}]}",
+                reportUUID,
+                "27fe6714-0bc6-4435-adb0-818538abe42c",
+                patientUUID,
+                encounterUUID,
+                observationUUID);
+
+        Map<String, Object> updateHeaders = new HashMap<>();
+        updateHeaders.put(Constants.CAMEL_HTTP_METHOD, "PUT");
+        updateHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+        updateHeaders.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+        updateHeaders.put(Constants.HEADER_DIAGNOSTIC_REPORT_UUID, reportUUID);
+
+        producerTemplate.requestBodyAndHeaders(
+                "direct:openmrs-update-diagnostic-report-route", updateJson, updateHeaders, String.class);
+
+        log.info("Linked Observation {} to DiagnosticReport {}", observationUUID, reportUUID);
+        return observationUUID;
     }
 
     /**

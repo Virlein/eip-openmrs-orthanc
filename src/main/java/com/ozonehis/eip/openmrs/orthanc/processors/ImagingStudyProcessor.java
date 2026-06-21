@@ -7,19 +7,16 @@
  */
 package com.ozonehis.eip.openmrs.orthanc.processors;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsAttachmentHandler;
-import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsObsHandler;
+import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsDiagnosticReportHandler;
 import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsPatientHandler;
 import com.ozonehis.eip.openmrs.orthanc.handlers.orthanc.OrthancImagingStudyHandler;
+import com.ozonehis.eip.openmrs.orthanc.models.series.Series;
 import com.ozonehis.eip.openmrs.orthanc.models.imagingStudy.Study;
-import com.ozonehis.eip.openmrs.orthanc.models.obs.Attachment;
-import java.io.IOException;
-import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import com.ozonehis.eip.openmrs.orthanc.repository.ProcessedStudyRepository;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.ProducerTemplate;
@@ -35,25 +32,20 @@ import org.springframework.stereotype.Component;
 @Component
 public class ImagingStudyProcessor implements Processor {
 
-    private static final String orthancRenderedImageEndpoint = "%s/instances/%s/rendered";
+    @Autowired
+    private ProcessedStudyRepository processedStudyRepository;
 
-    @Value("${orthanc.baseUrl}")
-    private String orthancBaseUrl;
-
-    @Value("${eip.attachment.concept}")
-    private String attachmentConceptId;
+    @Value("${orthanc.publicUrl:${orthanc.baseUrl}}")
+    private String orthancPublicUrl;
 
     @Autowired
     private OpenmrsPatientHandler openmrsPatientHandler;
 
     @Autowired
-    private OpenmrsAttachmentHandler openmrsAttachmentHandler;
+    private OpenmrsDiagnosticReportHandler openmrsDiagnosticReportHandler;
 
     @Autowired
     private OrthancImagingStudyHandler orthancImagingStudyHandler;
-
-    @Autowired
-    private OpenmrsObsHandler openmrsObsHandler;
 
     @Override
     public void process(Exchange exchange) {
@@ -66,54 +58,48 @@ public class ImagingStudyProcessor implements Processor {
                 if (study.getPatientMainDicomTags().getOtherPatientIDs() == null) {
                     continue;
                 }
+
                 Patient openmrsPatient = openmrsPatientHandler.getPatientByIdentifier(
                         study.getPatientMainDicomTags().getOtherPatientIDs());
-                if (openmrsPatient != null
-                        && !openmrsPatient.getIdentifier().isEmpty()
-                        && !doesObsExists(
-                                producerTemplate,
-                                openmrsPatient.getIdPart(),
-                                study.getImagingStudyMainDicomTags().getStudyInstanceUID())) {
-                    createAttachment(
-                            study,
-                            openmrsPatient.getIdPart(),
-                            orthancImagingStudyHandler
-                                    .getSeriesByID(
-                                            producerTemplate, study.getSeries().get(0))
-                                    .getInstances()
-                                    .get(0));
+
+                if (openmrsPatient == null || openmrsPatient.getIdentifier().isEmpty()) {
+                    continue;
                 }
+
+                String patientUUID = openmrsPatient.getIdPart();
+                String studyInstanceUID = study.getImagingStudyMainDicomTags().getStudyInstanceUID();
+
+                if (processedStudyRepository.exists(study.id)) {
+                    log.debug("DiagnosticReport already processed for study {}", study.id);
+                    continue;
+                }
+
+                String modality = null;
+                String studyDate = study.getImagingStudyMainDicomTags().getStudyDate();
+
+                if (study.getSeries() != null && !study.getSeries().isEmpty()) {
+                    try {
+                        Series series = orthancImagingStudyHandler.getSeriesByID(
+                                producerTemplate, study.getSeries().get(0));
+                        if (series != null && series.getMainDicomTags() != null) {
+                            modality = series.getMainDicomTags().getModality();
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not fetch series for study {}: {}", study.id, e.getMessage());
+                    }
+                }
+
+                String reportUUID = openmrsDiagnosticReportHandler.createDiagnosticReport(
+                        producerTemplate,
+                        patientUUID,
+                        studyInstanceUID,
+                        study.id,
+                        orthancPublicUrl,
+                        modality,
+                        studyDate);
             }
         } catch (Exception e) {
-            throw new EIPException(String.format("Error processing ImagingStudy %s", e.getMessage()));
+            throw new EIPException(String.format("Error processing ImagingStudy: %s", e.getMessage()));
         }
-    }
-
-    private void createAttachment(Study study, String patientUUID, String instanceID) throws IOException {
-        String studyImageUrl = buildStudyImageUrl(instanceID);
-        byte[] orthancStudyBinaryData = orthancImagingStudyHandler.fetchStudyBinaryData(studyImageUrl);
-        if (orthancStudyBinaryData != null) {
-            openmrsAttachmentHandler.saveAttachment(
-                    orthancStudyBinaryData,
-                    patientUUID,
-                    study.getImagingStudyMainDicomTags().getStudyInstanceUID(),
-                    study.id);
-        }
-    }
-
-    private String buildStudyImageUrl(String instanceID) {
-        return String.format(orthancRenderedImageEndpoint, orthancBaseUrl, instanceID);
-    }
-
-    private boolean doesObsExists(ProducerTemplate producerTemplate, String patientUUID, String imagingStudyID)
-            throws JsonProcessingException {
-        List<Attachment> attachmentList =
-                openmrsObsHandler.getObsByPatientUUIDAndConceptUUID(producerTemplate, patientUUID, attachmentConceptId);
-        for (Attachment attachment : attachmentList) {
-            if (attachment.getComment() != null && attachment.getComment().contains(imagingStudyID)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

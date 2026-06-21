@@ -10,10 +10,8 @@ package com.ozonehis.eip.openmrs.orthanc.processors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozonehis.eip.openmrs.orthanc.Constants;
-import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsAttachmentDeleteHandler;
-import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsObsHandler;
-import com.ozonehis.eip.openmrs.orthanc.models.obs.Attachment;
-import java.util.List;
+import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsDiagnosticReportHandler;
+import com.ozonehis.eip.openmrs.orthanc.models.diagnosticreport.DiagnosticReportResource;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.Exchange;
@@ -21,22 +19,17 @@ import org.apache.camel.Processor;
 import org.apache.camel.ProducerTemplate;
 import org.openmrs.eip.EIPException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Slf4j
 @Setter
 @Component
 public class ImagingStudyDeletionProcessor implements Processor {
 
-    @Value("${eip.attachment.concept}")
-    private String attachmentConceptId;
-
     @Autowired
-    private OpenmrsAttachmentDeleteHandler openmrsAttachmentDeleteHandler;
-
-    @Autowired
-    private OpenmrsObsHandler openmrsObsHandler;
+    private OpenmrsDiagnosticReportHandler openmrsDiagnosticReportHandler;
 
     @Override
     public void process(Exchange exchange) {
@@ -55,14 +48,14 @@ public class ImagingStudyDeletionProcessor implements Processor {
             for (JsonNode change : changes) {
                 String changeType = change.get("ChangeType").asText();
                 String resourceType = change.get("ResourceType").asText();
-                String studyId = change.get("ID").asText();
+                String orthancStudyId = change.get("ID").asText();
 
                 if (!"Study".equals(resourceType) || !"Deletion".equals(changeType)) {
                     continue;
                 }
 
-                log.info("Study deletion detected: {}", studyId);
-                handleStudyDeletion(producerTemplate, studyId);
+                log.info("Study deletion detected: {}", orthancStudyId);
+                handleStudyDeletion(producerTemplate, orthancStudyId);
             }
 
             exchange.getMessage().setHeader(Constants.HEADER_CHANGES_SINCE, lastSeq);
@@ -75,13 +68,18 @@ public class ImagingStudyDeletionProcessor implements Processor {
 
     private void handleStudyDeletion(ProducerTemplate producerTemplate, String orthancStudyId) {
         try {
-            List<Attachment> attachments = openmrsObsHandler.getAllObsByConceptUUID(producerTemplate, attachmentConceptId);
-            for (Attachment attachment : attachments) {
-                String comment = attachment.getComment();
-                if (comment != null && comment.contains(orthancStudyId)) {
-                    log.info("Deleting attachment {} for study {}", attachment.getUuid(), orthancStudyId);
-                    openmrsAttachmentDeleteHandler.deleteAttachment(attachment.getUuid());
-                }
+            List<DiagnosticReportResource> reports =
+                    openmrsDiagnosticReportHandler.getDiagnosticReportsByOrthancId(
+                            producerTemplate, orthancStudyId);
+
+            if (reports.isEmpty()) {
+                log.warn("No DiagnosticReport found for Orthanc study {}, nothing to delete.", orthancStudyId);
+                return;
+            }
+
+            for (DiagnosticReportResource report : reports) {
+                log.info("Deleting DiagnosticReport {} for Orthanc study {}", report.getId(), orthancStudyId);
+                openmrsDiagnosticReportHandler.deleteDiagnosticReport(producerTemplate, report.getId());
             }
         } catch (Exception e) {
             log.error("Error handling study deletion for {}: {}", orthancStudyId, e.getMessage());

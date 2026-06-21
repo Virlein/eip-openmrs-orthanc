@@ -4,6 +4,7 @@
     <artifactId>eip-openmrs-orthanc-parent</artifactId>
     <groupId>com.ozonehis</groupId>
     <version>1.0.0-SNAPSHOT</version>
+    <relativePath>../pom.xml/pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>eip-openmrs-orthanc</artifactId>
@@ -47,15 +48,27 @@
                     <exclude>META-INF/*.SF</exclude>
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
-                    <exclude>META-INF/MANIFEST.MF</exclude>
                     <exclude>META-INF/okio.kotlin_module</exclude>
                     <exclude>META-INF.versions.9.module-info</exclude>
                     <exclude>logback.xml</exclude>
                     <exclude>logback.xml</exclude>
                     <exclude>logback-test.xml</exclude>
+                    <exclude>liquibase-watcher.xml</exclude>
                   </excludes>
                 </filter>
               </filters>
+              <transformers>
+                <transformer>
+                  <mainClass>com.ozonehis.eip.openmrs.orthanc.Application</mainClass>
+                </transformer>
+                <transformer>
+                  <resource>META-INF/spring.handlers</resource>
+                </transformer>
+                <transformer>
+                  <resource>META-INF/spring.schemas</resource>
+                </transformer>
+                <transformer />
+              </transformers>
             </configuration>
           </execution>
         </executions>
@@ -94,6 +107,17 @@
                 </artifact>
               </artifacts>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

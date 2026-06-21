@@ -25,4 +25,26 @@ public class Series {
 
     @JsonProperty("Instances")
     public List<String> instances;
+
+    @JsonProperty("MainDicomTags")
+    public SeriesMainDicomTags mainDicomTags;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SeriesMainDicomTags {
+
+        @JsonProperty("Modality")
+        public String modality;
+
+        @JsonProperty("SeriesDescription")
+        public String seriesDescription;
+
+        @JsonProperty("SeriesInstanceUID")
+        public String seriesInstanceUID;
+
+        @JsonProperty("SeriesNumber")
+        public String seriesNumber;
+    }
 }

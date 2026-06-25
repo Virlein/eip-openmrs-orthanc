@@ -1,5 +1,6 @@
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/Application.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/Constants.java
+/Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/config/CursorStore.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/config/EIPAppConfig.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/config/OpenmrsConfig.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/config/OpenmrsOrthancConfig.java

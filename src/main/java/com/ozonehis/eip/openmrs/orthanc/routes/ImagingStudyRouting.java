@@ -12,6 +12,7 @@ import com.ozonehis.eip.openmrs.orthanc.converters.ResourceConverter;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyDeletionProcessor;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingSRProcessor;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
+import com.ozonehis.eip.openmrs.orthanc.config.CursorStore;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyProcessor;
 import lombok.Setter;
 import org.apache.camel.LoggingLevel;
@@ -37,6 +38,9 @@ public class ImagingStudyRouting extends RouteBuilder {
     @Autowired
     private ResourceConverter resourceConverter;
 
+    @Autowired
+    private CursorStore cursorStore;
+
     @Value("${openmrs.baseUrl}")
     private String openmrsBaseUrl;
 
@@ -58,7 +62,7 @@ public class ImagingStudyRouting extends RouteBuilder {
         from("scheduler:studyDeletion?initialDelay=15000&delay=10000")
             .routeId("poll-orthanc-changes")
             .log(LoggingLevel.INFO, "Polling Orthanc changes started...")
-            .setHeader(Constants.HEADER_STUDIES_SINCE, simple("${exchangeProperty.orthanc.changes.cursor}?:0"))
+            .setHeader(Constants.HEADER_STUDIES_SINCE, method(cursorStore, "getChangesCursor"))
             .to("direct:orthanc-get-changes-route")
             .process(imagingStudyDeletionProcessor)
             .log(LoggingLevel.INFO, "Polling Orthanc changes completed.")
@@ -67,7 +71,7 @@ public class ImagingStudyRouting extends RouteBuilder {
         from("scheduler:srDetection?initialDelay=20000&delay=10000")
             .routeId("poll-orthanc-sr")
             .log(LoggingLevel.INFO, "Polling Orthanc SR changes started...")
-            .setHeader(Constants.HEADER_STUDIES_SINCE, simple("${exchangeProperty.orthanc.sr.changes.cursor}?:0"))
+            .setHeader(Constants.HEADER_STUDIES_SINCE, method(cursorStore, "getSrChangesCursor"))
             .to("direct:orthanc-get-changes-route")
             .process(imagingSRProcessor)
             .log(LoggingLevel.INFO, "Polling Orthanc SR changes completed.")

@@ -21,6 +21,7 @@ com/ozonehis/eip/openmrs/orthanc/config/EIPAppConfig.class
 com/ozonehis/eip/openmrs/orthanc/models/diagnosticreport/DiagnosticReportBundle$BundleEntry.class
 com/ozonehis/eip/openmrs/orthanc/models/imagingStudy/Study.class
 com/ozonehis/eip/openmrs/orthanc/models/obs/AttachmentObs.class
+com/ozonehis/eip/openmrs/orthanc/config/CursorStore.class
 com/ozonehis/eip/openmrs/orthanc/config/OpenmrsOrthancConfig.class
 com/ozonehis/eip/openmrs/orthanc/models/series/Series$SeriesMainDicomTags.class
 com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsObsHandler.class

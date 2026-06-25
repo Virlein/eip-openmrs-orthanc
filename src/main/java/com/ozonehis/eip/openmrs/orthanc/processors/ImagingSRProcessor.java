@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.ozonehis.eip.openmrs.orthanc.config.OpenmrsConfig;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
+import com.ozonehis.eip.openmrs.orthanc.config.CursorStore;
 import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsDiagnosticReportHandler;
 import com.ozonehis.eip.openmrs.orthanc.repository.ProcessedStudyRepository;
 import lombok.Setter;
@@ -44,6 +45,9 @@ public class ImagingSRProcessor implements Processor {
     @Autowired
     private OrthancTokenProvider orthancTokenProvider;
 
+    @Autowired
+    private CursorStore cursorStore;
+
     @Value("${orthanc.baseUrl:http://orthanc:8042}")
     private String orthancBaseUrl;
 
@@ -58,7 +62,7 @@ public class ImagingSRProcessor implements Processor {
 
             if (changes == null || changes.isEmpty()) {
                 exchange.getMessage().setHeader(Constants.HEADER_STUDIES_SINCE, lastSeq);
-                exchange.setProperty("orthanc.sr.changes.cursor", lastSeq);
+                cursorStore.setSrChangesCursor(lastSeq);
                 return;
             }
 
@@ -79,7 +83,7 @@ public class ImagingSRProcessor implements Processor {
             }
 
             exchange.getMessage().setHeader(Constants.HEADER_STUDIES_SINCE, lastSeq);
-            exchange.setProperty("orthanc.sr.changes.cursor", lastSeq);
+            cursorStore.setSrChangesCursor(lastSeq);
         } catch (Exception e) {
             throw new EIPException(
                     String.format("Error processing SR changes: %s", e.getMessage()));

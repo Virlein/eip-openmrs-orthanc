@@ -10,6 +10,7 @@ package com.ozonehis.eip.openmrs.orthanc.processors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozonehis.eip.openmrs.orthanc.Constants;
+import com.ozonehis.eip.openmrs.orthanc.config.CursorStore;
 import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsDiagnosticReportHandler;
 import com.ozonehis.eip.openmrs.orthanc.models.diagnosticreport.DiagnosticReportResource;
 import lombok.Setter;
@@ -31,6 +32,9 @@ public class ImagingStudyDeletionProcessor implements Processor {
     @Autowired
     private OpenmrsDiagnosticReportHandler openmrsDiagnosticReportHandler;
 
+    @Autowired
+    private CursorStore cursorStore;
+
     @Override
     public void process(Exchange exchange) {
         try (ProducerTemplate producerTemplate = exchange.getContext().createProducerTemplate()) {
@@ -42,7 +46,7 @@ public class ImagingStudyDeletionProcessor implements Processor {
 
             if (changes == null || changes.isEmpty()) {
                 exchange.getMessage().setHeader(Constants.HEADER_CHANGES_SINCE, lastSeq);
-                exchange.setProperty("orthanc.changes.cursor", lastSeq);
+                cursorStore.setChangesCursor(lastSeq);
                 return;
             }
 
@@ -60,6 +64,7 @@ public class ImagingStudyDeletionProcessor implements Processor {
             }
 
             exchange.getMessage().setHeader(Constants.HEADER_CHANGES_SINCE, lastSeq);
+            cursorStore.setChangesCursor(lastSeq);
 
         } catch (Exception e) {
             throw new EIPException(

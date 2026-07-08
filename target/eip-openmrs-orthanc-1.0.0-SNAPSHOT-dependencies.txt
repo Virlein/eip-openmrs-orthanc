@@ -1,5 +1,5 @@
-com.ozonehis$eip-commons$jar=2.4.0-SNAPSHOT:7656dcb0687a850c28795dfae058a49d4336a42f
-com.ozonehis$eip-commons-test$jar=2.4.0-SNAPSHOT:f49bf3cf0f24eff1c8716ed4200e51fce59a1d60
+com.ozonehis$eip-commons$jar=2.4.0-SNAPSHOT:0a3e9794d42bc802c0df5b1591e2646516320ab7
+com.ozonehis$eip-commons-test$jar=2.4.0-SNAPSHOT:f5d5c74fb9ceeb21fcc17ea959432f42c8d12bba
 com.squareup.okhttp3$okhttp$jar=4.11.0:436932d695b2c43f2c86b8111c596179cd133d56
 com.squareup.okio$okio$jar=3.9.1:3f1067fc8f61b89e013ea121198c49c991d74cbb
 org.apache.camel$camel-core$jar=4.1.0:683e8265fc5e7645ace1d81a6b63b36ee7c2c58e

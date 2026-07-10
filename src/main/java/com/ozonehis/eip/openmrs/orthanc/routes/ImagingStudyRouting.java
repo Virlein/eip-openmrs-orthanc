@@ -129,5 +129,6 @@ public class ImagingStudyRouting extends RouteBuilder {
             .toD(openmrsBaseUrl + "/ws/fhir2/R4/Observation/${header." + Constants.HEADER_OBSERVATION_UUID + "}")
             .end();
         // spotless:on
+
     }
 }

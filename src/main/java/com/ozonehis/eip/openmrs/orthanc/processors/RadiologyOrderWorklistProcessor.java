@@ -64,8 +64,36 @@ public class RadiologyOrderWorklistProcessor implements Processor {
 
     private final OkHttpClient httpClient = new OkHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
-    private final Set<String> processedOrders = new HashSet<>();
-    private Instant lastPollTime = Instant.now().minusSeconds(3600); // start 1 hour ago
+    private final Set<String> processedOrders = loadProcessedOrders();
+    private Instant lastPollTime = Instant.now().minusSeconds(3600);
+    private static final String PROCESSED_ORDERS_FILE = "/eip-client/.processed-radiology-orders.txt";
+
+    private Set<String> loadProcessedOrders() {
+        Set<String> orders = new HashSet<>();
+        try {
+            java.io.File file = new java.io.File(PROCESSED_ORDERS_FILE);
+            if (file.exists()) {
+                java.util.List<String> lines = java.nio.file.Files.readAllLines(file.toPath());
+                orders.addAll(lines);
+                log.info("Loaded {} processed radiology orders from disk", orders.size());
+            }
+        } catch (Exception e) {
+            log.warn("Could not load processed orders: {}", e.getMessage());
+        }
+        return orders;
+    }
+
+    private void saveProcessedOrders() {
+        try {
+            java.nio.file.Files.write(
+                java.nio.file.Paths.get(PROCESSED_ORDERS_FILE),
+                processedOrders,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (Exception e) {
+            log.warn("Could not save processed orders: {}", e.getMessage());
+        }
+    }
 
     @Override
     public void process(Exchange exchange) throws Exception {
@@ -151,6 +179,7 @@ public class RadiologyOrderWorklistProcessor implements Processor {
                     orthancWorklistHandler.createWorklistEntry(
                         patientId, dicomName, accessionNumber, procedureDesc, modality);
                     processedOrders.add(srId);
+                    saveProcessedOrders();
                     count++;
                 } catch (Exception e) {
                     log.error("Failed to create worklist for order {}: {}", srId, e.getMessage());

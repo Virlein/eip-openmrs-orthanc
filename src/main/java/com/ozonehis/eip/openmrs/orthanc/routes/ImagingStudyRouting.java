@@ -13,6 +13,7 @@ import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyDeletionProcessor
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingSRProcessor;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
 import com.ozonehis.eip.openmrs.orthanc.config.CursorStore;
+import com.ozonehis.eip.openmrs.orthanc.processors.RadiologyOrderWorklistProcessor;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyProcessor;
 import lombok.Setter;
 import org.apache.camel.LoggingLevel;
@@ -40,6 +41,9 @@ public class ImagingStudyRouting extends RouteBuilder {
 
     @Autowired
     private CursorStore cursorStore;
+
+    @Autowired
+    private RadiologyOrderWorklistProcessor radiologyOrderWorklistProcessor;
 
     @Value("${openmrs.baseUrl}")
     private String openmrsBaseUrl;
@@ -129,6 +133,14 @@ public class ImagingStudyRouting extends RouteBuilder {
             .toD(openmrsBaseUrl + "/ws/fhir2/R4/Observation/${header." + Constants.HEADER_OBSERVATION_UUID + "}")
             .end();
         // spotless:on
+
+        // ── Radiology order → Orthanc worklist entry (timer-based polling) ──
+        from("scheduler:radiology-order-poll?initialDelay=60000&delay=30000")
+            .routeId("radiology-order-to-orthanc-worklist")
+            .log(LoggingLevel.INFO, "Polling OpenMRS for new radiology orders...")
+            .process(radiologyOrderWorklistProcessor)
+            .log(LoggingLevel.INFO, "Radiology order polling complete.")
+            .end();
 
     }
 }

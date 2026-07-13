@@ -23,6 +23,7 @@
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/models/patient/Patient.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/models/patient/PatientMainDicomTags.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/models/series/Series.java
+/Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/odoo/OdooPaymentGate.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingSRProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyDeletionProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyProcessor.java

@@ -10,6 +10,7 @@ package com.ozonehis.eip.openmrs.orthanc.processors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozonehis.eip.openmrs.orthanc.handlers.orthanc.OrthancWorklistHandler;
+import com.ozonehis.eip.openmrs.orthanc.odoo.OdooPaymentGate;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -33,6 +34,9 @@ public class RadiologyOrderWorklistProcessor implements Processor {
 
     @Autowired
     private OrthancWorklistHandler orthancWorklistHandler;
+
+    @Autowired
+    private OdooPaymentGate odooPaymentGate;
 
     @Value("${openmrs.baseUrl:http://openmrs:8080/openmrs}")
     private String openmrsBaseUrl;
@@ -174,6 +178,14 @@ public class RadiologyOrderWorklistProcessor implements Processor {
                 if (desc.contains("ct") || desc.contains("scan")) modality = "CT";
                 else if (desc.contains("ultrasound") || desc.contains("echo")) modality = "US";
                 else if (desc.contains("mri") || desc.contains("mr ")) modality = "MR";
+
+                // Check Odoo payment gate - only create worklist if order is confirmed
+                String patientUuidForGate = patientUuid;
+                if (!odooPaymentGate.isOrderConfirmed(patientUuidForGate, procedureDesc)) {
+                    log.info("Odoo order not yet confirmed for patient {} procedure '{}', skipping worklist",
+                        patientUuid, procedureDesc);
+                    continue;
+                }
 
                 try {
                     orthancWorklistHandler.createWorklistEntry(

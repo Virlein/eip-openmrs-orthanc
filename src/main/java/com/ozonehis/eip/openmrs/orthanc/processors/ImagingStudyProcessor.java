@@ -62,11 +62,16 @@ public class ImagingStudyProcessor implements Processor {
             ObjectMapper mapper = new ObjectMapper();
             Study[] studies = mapper.readValue(body, Study[].class);
             for (Study study : studies) {
-                if (study.getPatientMainDicomTags().getOtherPatientIDs() == null) {
+                // Use OtherPatientIDs first, fall back to PatientID
+                String patientIdentifier = study.getPatientMainDicomTags().getOtherPatientIDs();
+                if (patientIdentifier == null || patientIdentifier.isEmpty()) {
+                    patientIdentifier = study.getPatientMainDicomTags().getPatientID();
+                }
+                if (patientIdentifier == null || patientIdentifier.isEmpty()) {
+                    log.warn("No patient identifier found in DICOM study {}, skipping", study.id);
                     continue;
                 }
-                Patient openmrsPatient = openmrsPatientHandler.getPatientByIdentifier(
-                        study.getPatientMainDicomTags().getOtherPatientIDs());
+                Patient openmrsPatient = openmrsPatientHandler.getPatientByIdentifier(patientIdentifier);
                 if (openmrsPatient == null || openmrsPatient.getIdentifier().isEmpty()) {
                     continue;
                 }

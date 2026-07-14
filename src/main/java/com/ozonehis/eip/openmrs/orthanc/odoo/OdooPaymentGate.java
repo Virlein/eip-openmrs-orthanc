@@ -68,7 +68,7 @@ public class OdooPaymentGate {
                 sessionCookie = null;
                 throw new IOException("Odoo auth failed");
             }
-            log.info("Authenticated to Odoo for payment gate");
+            log.info("Authenticated to Odoo payment gate");
         }
     }
 
@@ -106,6 +106,11 @@ public class OdooPaymentGate {
         }
     }
 
+    /**
+     * Check if the patient has at least one confirmed sale order in Odoo.
+     * Gate at patient level - if billing team confirmed any order for this patient,
+     * allow all their radiology worklist entries.
+     */
     public boolean isOrderConfirmed(String patientUuid, String procedureDesc) {
         try {
             ArrayNode args = mapper.createArrayNode();
@@ -125,19 +130,20 @@ public class OdooPaymentGate {
             ArrayNode fields = mapper.createArrayNode();
             fields.add("id"); fields.add("name");
             kwargs.set("fields", fields);
+            kwargs.put("limit", 1);
 
             JsonNode orders = callKw("sale.order", "search_read", args, kwargs);
-            if (orders == null || !orders.isArray() || orders.isEmpty()) {
-                log.debug("No confirmed Odoo sale order for patient {}", patientUuid);
-                return false;
+            if (orders != null && orders.isArray() && orders.size() > 0) {
+                log.info("Payment gate: patient {} has confirmed order {} - allowing worklist",
+                    patientUuid, orders.get(0).path("name").asText());
+                return true;
             }
 
-            log.info("Found confirmed Odoo order for patient {} procedure '{}'",
-                patientUuid, procedureDesc);
-            return true;
+            log.info("Payment gate: no confirmed order for patient {} - blocking worklist", patientUuid);
+            return false;
 
         } catch (Exception e) {
-            log.warn("Odoo payment gate error: {} - failing open", e.getMessage());
+            log.warn("Payment gate error: {} - failing open", e.getMessage());
             return true;
         }
     }

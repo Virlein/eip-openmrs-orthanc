@@ -111,7 +111,7 @@ public class RadiologyOrderWorklistProcessor implements Processor {
         try {
             // Search for active ServiceRequests with imaging category
             String url = openmrsBaseUrl + "/ws/fhir2/R4/ServiceRequest" +
-                "?_sort=-_lastUpdated&_count=20";
+                "?_sort=-_lastUpdated&_count=100";
 
             JsonNode bundle = fetchFhir(url);
             if (bundle == null) return;

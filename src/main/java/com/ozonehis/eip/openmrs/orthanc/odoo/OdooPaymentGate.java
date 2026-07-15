@@ -68,7 +68,7 @@ public class OdooPaymentGate {
                 sessionCookie = null;
                 throw new IOException("Odoo auth failed");
             }
-            log.info("Authenticated to Odoo payment gate");
+            log.debug("Payment gate: authenticated to Odoo");
         }
     }
 
@@ -107,39 +107,60 @@ public class OdooPaymentGate {
     }
 
     /**
-     * Check if the patient has at least one confirmed sale order in Odoo.
-     * Gate at patient level - if billing team confirmed any order for this patient,
-     * allow all their radiology worklist entries.
+     * Check if the SPECIFIC procedure has been invoiced in Odoo (per-scan gating).
+     * Queries sale.order.line directly via order_id.partner_id.ref, checking
+     * qty_invoiced > 0, regardless of the parent order's current state.
      */
     public boolean isOrderConfirmed(String patientUuid, String procedureDesc) {
+        log.debug("Payment gate: checking patient={} procedure={}", patientUuid, procedureDesc);
         try {
-            ArrayNode args = mapper.createArrayNode();
-            ArrayNode domain = mapper.createArrayNode();
-
-            ArrayNode stateCond = mapper.createArrayNode();
-            stateCond.add("state"); stateCond.add("="); stateCond.add("sale");
-            domain.add(stateCond);
+            ArrayNode lineArgs = mapper.createArrayNode();
+            ArrayNode lineDomain = mapper.createArrayNode();
 
             ArrayNode partnerCond = mapper.createArrayNode();
-            partnerCond.add("partner_id.ref"); partnerCond.add("="); partnerCond.add(patientUuid);
-            domain.add(partnerCond);
+            partnerCond.add("order_id.partner_id.ref");
+            partnerCond.add("=");
+            partnerCond.add(patientUuid);
+            lineDomain.add(partnerCond);
 
-            args.add(domain);
+            ArrayNode invoicedCond = mapper.createArrayNode();
+            invoicedCond.add("qty_invoiced");
+            invoicedCond.add(">");
+            invoicedCond.add(0);
+            lineDomain.add(invoicedCond);
 
-            ObjectNode kwargs = mapper.createObjectNode();
-            ArrayNode fields = mapper.createArrayNode();
-            fields.add("id"); fields.add("name");
-            kwargs.set("fields", fields);
-            kwargs.put("limit", 1);
+            lineArgs.add(lineDomain);
 
-            JsonNode orders = callKw("sale.order", "search_read", args, kwargs);
-            if (orders != null && orders.isArray() && orders.size() > 0) {
-                log.info("Payment gate: patient {} has confirmed order {} - allowing worklist",
-                    patientUuid, orders.get(0).path("name").asText());
-                return true;
+            ObjectNode lineKwargs = mapper.createObjectNode();
+            ArrayNode lineFields = mapper.createArrayNode();
+            lineFields.add("name");
+            lineFields.add("qty_invoiced");
+            lineFields.add("order_id");
+            lineKwargs.set("fields", lineFields);
+
+            JsonNode lines = callKw("sale.order.line", "search_read", lineArgs, lineKwargs);
+            log.debug("Payment gate: query result = {}", lines);
+
+            if (lines == null || !lines.isArray() || lines.size() == 0) {
+                log.info("Payment gate: no invoiced lines for patient {} - blocking", patientUuid);
+                return false;
             }
 
-            log.info("Payment gate: no confirmed order for patient {} - blocking worklist", patientUuid);
+            String matchKey = procedureDesc != null && procedureDesc.length() > 6
+                ? procedureDesc.substring(0, 6).toLowerCase()
+                : (procedureDesc != null ? procedureDesc.toLowerCase() : "");
+
+            for (JsonNode line : lines) {
+                String lineName = line.path("name").asText("").toLowerCase();
+                if (!matchKey.isEmpty() && lineName.contains(matchKey)) {
+                    log.info("Payment gate: patient {} procedure '{}' is invoiced - allowing",
+                        patientUuid, procedureDesc);
+                    return true;
+                }
+            }
+
+            log.info("Payment gate: procedure '{}' not invoiced for patient {} - blocking",
+                procedureDesc, patientUuid);
             return false;
 
         } catch (Exception e) {

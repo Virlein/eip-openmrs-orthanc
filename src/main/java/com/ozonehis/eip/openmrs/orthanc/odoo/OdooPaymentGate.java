@@ -114,35 +114,41 @@ public class OdooPaymentGate {
     public boolean isOrderConfirmed(String patientUuid, String procedureDesc) {
         log.debug("Payment gate: checking patient={} procedure={}", patientUuid, procedureDesc);
         try {
+            // Fetch ALL lines for this patient matching the procedure name -
+            // both paid and unpaid - sorted newest first, so we can identify
+            // the MOST RECENT one. We intentionally do NOT pre-filter on
+            // qty_invoiced: doing so previously caused a bug where a patient
+            // with ANY historically-paid line for a reused procedure name
+            // (e.g. "RX01 - Chest X-ray") would pass the gate for every
+            // future, unrelated, unpaid order of the same name - since
+            // eip-odoo-openmrs starts a brand new sale order once the
+            // previous one is confirmed/invoiced, reusing the exact same
+            // line name each time.
             ArrayNode lineArgs = mapper.createArrayNode();
             ArrayNode lineDomain = mapper.createArrayNode();
-
             ArrayNode partnerCond = mapper.createArrayNode();
             partnerCond.add("order_id.partner_id.ref");
             partnerCond.add("=");
             partnerCond.add(patientUuid);
             lineDomain.add(partnerCond);
-
-            ArrayNode invoicedCond = mapper.createArrayNode();
-            invoicedCond.add("qty_invoiced");
-            invoicedCond.add(">");
-            invoicedCond.add(0);
-            lineDomain.add(invoicedCond);
-
             lineArgs.add(lineDomain);
 
             ObjectNode lineKwargs = mapper.createObjectNode();
             ArrayNode lineFields = mapper.createArrayNode();
+            lineFields.add("id");
             lineFields.add("name");
             lineFields.add("qty_invoiced");
             lineFields.add("order_id");
             lineKwargs.set("fields", lineFields);
+            // Sort by Odoo's auto-increment primary key, newest first.
+            // A higher id always means "created later" - no timestamp needed.
+            lineKwargs.put("order", "id desc");
 
             JsonNode lines = callKw("sale.order.line", "search_read", lineArgs, lineKwargs);
             log.debug("Payment gate: query result = {}", lines);
 
             if (lines == null || !lines.isArray() || lines.size() == 0) {
-                log.info("Payment gate: no invoiced lines for patient {} - blocking", patientUuid);
+                log.info("Payment gate: no sale order lines at all for patient {} - blocking", patientUuid);
                 return false;
             }
 
@@ -150,16 +156,28 @@ public class OdooPaymentGate {
                 ? procedureDesc.substring(0, 6).toLowerCase()
                 : (procedureDesc != null ? procedureDesc.toLowerCase() : "");
 
+            // Because results are sorted id DESC, the FIRST match found here
+            // is the most recently created sale order line for this
+            // product/patient - i.e. the one corresponding to the CURRENT,
+            // still-unresolved order. Only that one determines the gate
+            // result; older (already closed) lines are never consulted.
             for (JsonNode line : lines) {
                 String lineName = line.path("name").asText("").toLowerCase();
                 if (!matchKey.isEmpty() && lineName.contains(matchKey)) {
-                    log.info("Payment gate: patient {} procedure '{}' is invoiced - allowing",
-                        patientUuid, procedureDesc);
-                    return true;
+                    double qtyInvoiced = line.path("qty_invoiced").asDouble(0);
+                    if (qtyInvoiced > 0) {
+                        log.info("Payment gate: patient {} procedure '{}' - most recent matching line (id={}) is invoiced - allowing",
+                            patientUuid, procedureDesc, line.path("id").asInt());
+                        return true;
+                    } else {
+                        log.info("Payment gate: patient {} procedure '{}' - most recent matching line (id={}) is NOT invoiced - blocking",
+                            patientUuid, procedureDesc, line.path("id").asInt());
+                        return false;
+                    }
                 }
             }
 
-            log.info("Payment gate: procedure '{}' not invoiced for patient {} - blocking",
+            log.info("Payment gate: procedure '{}' not found among any sale order lines for patient {} - blocking",
                 procedureDesc, patientUuid);
             return false;
 

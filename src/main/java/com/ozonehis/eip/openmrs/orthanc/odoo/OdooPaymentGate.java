@@ -114,16 +114,13 @@ public class OdooPaymentGate {
     public boolean isOrderConfirmed(String patientUuid, String procedureDesc) {
         log.debug("Payment gate: checking patient={} procedure={}", patientUuid, procedureDesc);
         try {
-            // Fetch ALL lines for this patient matching the procedure name -
-            // both paid and unpaid - sorted newest first, so we can identify
-            // the MOST RECENT one. We intentionally do NOT pre-filter on
-            // qty_invoiced: doing so previously caused a bug where a patient
-            // with ANY historically-paid line for a reused procedure name
-            // (e.g. "RX01 - Chest X-ray") would pass the gate for every
-            // future, unrelated, unpaid order of the same name - since
-            // eip-odoo-openmrs starts a brand new sale order once the
-            // previous one is confirmed/invoiced, reusing the exact same
-            // line name each time.
+            // Step 1: fetch ALL sale.order.line rows for this patient matching
+            // the procedure name, sorted newest first (Odoo auto-increment id
+            // desc). eip-odoo-openmrs starts a brand new sale order once the
+            // previous one is confirmed/invoiced, reusing the exact same line
+            // name each time - so the FIRST match in this newest-first list is
+            // always the line corresponding to the CURRENT, still-unresolved
+            // order. Older (already closed) lines are never consulted.
             ArrayNode lineArgs = mapper.createArrayNode();
             ArrayNode lineDomain = mapper.createArrayNode();
             ArrayNode partnerCond = mapper.createArrayNode();
@@ -140,12 +137,10 @@ public class OdooPaymentGate {
             lineFields.add("qty_invoiced");
             lineFields.add("order_id");
             lineKwargs.set("fields", lineFields);
-            // Sort by Odoo's auto-increment primary key, newest first.
-            // A higher id always means "created later" - no timestamp needed.
             lineKwargs.put("order", "id desc");
 
             JsonNode lines = callKw("sale.order.line", "search_read", lineArgs, lineKwargs);
-            log.debug("Payment gate: query result = {}", lines);
+            log.debug("Payment gate: sale.order.line query result = {}", lines);
 
             if (lines == null || !lines.isArray() || lines.size() == 0) {
                 log.info("Payment gate: no sale order lines at all for patient {} - blocking", patientUuid);
@@ -156,29 +151,79 @@ public class OdooPaymentGate {
                 ? procedureDesc.substring(0, 6).toLowerCase()
                 : (procedureDesc != null ? procedureDesc.toLowerCase() : "");
 
-            // Because results are sorted id DESC, the FIRST match found here
-            // is the most recently created sale order line for this
-            // product/patient - i.e. the one corresponding to the CURRENT,
-            // still-unresolved order. Only that one determines the gate
-            // result; older (already closed) lines are never consulted.
+            JsonNode mostRecentLine = null;
             for (JsonNode line : lines) {
                 String lineName = line.path("name").asText("").toLowerCase();
                 if (!matchKey.isEmpty() && lineName.contains(matchKey)) {
-                    double qtyInvoiced = line.path("qty_invoiced").asDouble(0);
-                    if (qtyInvoiced > 0) {
-                        log.info("Payment gate: patient {} procedure '{}' - most recent matching line (id={}) is invoiced - allowing",
-                            patientUuid, procedureDesc, line.path("id").asInt());
-                        return true;
-                    } else {
-                        log.info("Payment gate: patient {} procedure '{}' - most recent matching line (id={}) is NOT invoiced - blocking",
-                            patientUuid, procedureDesc, line.path("id").asInt());
-                        return false;
-                    }
+                    mostRecentLine = line;
+                    break;
                 }
             }
 
-            log.info("Payment gate: procedure '{}' not found among any sale order lines for patient {} - blocking",
-                procedureDesc, patientUuid);
+            if (mostRecentLine == null) {
+                log.info("Payment gate: procedure '{}' not found among any sale order lines for patient {} - blocking",
+                    procedureDesc, patientUuid);
+                return false;
+            }
+
+            if (mostRecentLine.path("qty_invoiced").asDouble(0) <= 0) {
+                log.info("Payment gate: patient {} procedure '{}' - most recent matching line (id={}) has not been invoiced - blocking",
+                    patientUuid, procedureDesc, mostRecentLine.path("id").asInt());
+                return false;
+            }
+
+            // Step 2: an invoice exists for this line's order - but qty_invoiced
+            // only proves an invoice was CREATED, not that the patient has
+            // actually PAID. Look up the invoice(s) for this order and require
+            // payment_state = 'paid' AND amount_residual = 0 before allowing.
+            String orderName = mostRecentLine.path("order_id").isArray() && mostRecentLine.path("order_id").size() > 1
+                ? mostRecentLine.path("order_id").get(1).asText("")
+                : "";
+
+            if (orderName.isEmpty()) {
+                log.warn("Payment gate: could not resolve order name for line id={} - blocking (fail closed)",
+                    mostRecentLine.path("id").asInt());
+                return false;
+            }
+
+            ArrayNode invArgs = mapper.createArrayNode();
+            ArrayNode invDomain = mapper.createArrayNode();
+            ArrayNode originCond = mapper.createArrayNode();
+            originCond.add("invoice_origin");
+            originCond.add("=");
+            originCond.add(orderName);
+            invDomain.add(originCond);
+            invArgs.add(invDomain);
+
+            ObjectNode invKwargs = mapper.createObjectNode();
+            ArrayNode invFields = mapper.createArrayNode();
+            invFields.add("name");
+            invFields.add("state");
+            invFields.add("payment_state");
+            invFields.add("amount_residual");
+            invKwargs.set("fields", invFields);
+
+            JsonNode invoices = callKw("account.move", "search_read", invArgs, invKwargs);
+            log.debug("Payment gate: account.move query result for order {} = {}", orderName, invoices);
+
+            if (invoices == null || !invoices.isArray() || invoices.size() == 0) {
+                log.info("Payment gate: no invoice found for order {} (patient {}, procedure '{}') - blocking",
+                    orderName, patientUuid, procedureDesc);
+                return false;
+            }
+
+            for (JsonNode invoice : invoices) {
+                String paymentState = invoice.path("payment_state").asText("");
+                double residual = invoice.path("amount_residual").asDouble(-1);
+                if ("paid".equals(paymentState) && residual == 0.0) {
+                    log.info("Payment gate: patient {} procedure '{}' - invoice {} is fully PAID (residual=0) - allowing",
+                        patientUuid, procedureDesc, invoice.path("name").asText());
+                    return true;
+                }
+            }
+
+            log.info("Payment gate: patient {} procedure '{}' - order {} has an invoice but it is NOT fully paid - blocking",
+                patientUuid, procedureDesc, orderName);
             return false;
 
         } catch (Exception e) {

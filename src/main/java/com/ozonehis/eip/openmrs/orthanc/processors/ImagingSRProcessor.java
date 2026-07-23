@@ -27,6 +27,15 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 @Slf4j
 @Setter
@@ -154,36 +163,130 @@ public class ImagingSRProcessor implements Processor {
             // Parse SR content
             String srText = parseSRContent(mapper, seriesDicomTags, series);
 
+            // Resolve which specific radiology order this SR belongs to, via
+            // the study's AccessionNumber (set by RadiologyOrderWorklistProcessor
+            // as the first 12 hex chars of the ServiceRequest UUID, and echoed
+            // back by the modality on the resulting study). This lets us use
+            // the ACTUAL ordered procedure's concept for the Observation
+            // instead of a generic placeholder - important when a patient has
+            // multiple simultaneous radiology orders, where "most recent" is
+            // not a reliable way to tell them apart.
+            String procedureConceptUuid = resolveProcedureConceptFromAccessionNumber(
+                    producerTemplate, mapper, parentStudy, patientUUID);
+
             // Update DiagnosticReport and Observation
             openmrsDiagnosticReportHandler.updateDiagnosticReportWithSR(
-                    producerTemplate, patientUUID, reportUUID, srText);
+                    producerTemplate, patientUUID, reportUUID, srText, procedureConceptUuid);
+
 
         } catch (Exception e) {
             log.error("Error handling potential SR instance {}: {}", instanceId, e.getMessage());
         }
     }
 
+    // Radiology concept UUIDs - same whitelist used when creating worklist
+    // entries in RadiologyOrderWorklistProcessor.
+    private static final Set<String> RADIOLOGY_CONCEPT_UUIDS = new HashSet<>(java.util.Arrays.asList(
+        "e3dea2c8-62c6-4487-bdaa-1d009642f7ad", // RX01 - Chest X-ray
+        "82e7d36c-078d-40c6-9854-92b376099307", // RX02 - Abdominal X-ray
+        "701257a2-885e-4249-8319-d9597d2970af", // RX03 - Bone X-ray
+        "b25dcc00-800f-48ac-b31a-f1e9cc53d787", // RX04 - Intravenous urography
+        "81e0643c-a871-475e-8bd5-93945da8877d", // RX05 - Salpingo-urethrogram
+        "1a5e3d73-f897-47ed-840b-d4537b7cc586", // RX06 - Barium enema
+        "0a5ba175-fb7e-4d66-aa6a-ba058f3468c1", // RX07 - CT scan
+        "d0b5d4a0-1001-0000-0000-000000000001",
+        "d0b5d4a0-1002-0000-0000-000000000001",
+        "d0b5d4a0-1003-0000-0000-000000000001",
+        "d0b5d4a0-1004-0000-0000-000000000001",
+        "d0b5d4a0-1005-0000-0000-000000000001",
+        "d0b5d4a0-1006-0000-0000-000000000001",
+        "d0b5d4a0-1007-0000-0000-000000000001",
+        "d0b5d4a0-1008-0000-0000-000000000001"
+    ));
+
+    /**
+     * Resolves the exact radiology ServiceRequest (and its concept UUID) that
+     * this SR's parent study corresponds to, using AccessionNumber as the
+     * unambiguous link: RadiologyOrderWorklistProcessor sets AccessionNumber
+     * to the first 12 hex chars of the ordering ServiceRequest's UUID when
+     * creating the Orthanc worklist entry, and the modality echoes this back
+     * onto the resulting study. Returns null if no AccessionNumber is present
+     * or no matching active ServiceRequest is found (falls back to the
+     * generic "General patient note" concept at the call site).
+     */
+    private String resolveProcedureConceptFromAccessionNumber(
+            ProducerTemplate producerTemplate, ObjectMapper mapper, String orthancStudyId, String patientUUID) {
+        try {
+            String studyJson = producerTemplate.requestBodyAndHeaders(
+                    "direct:orthanc-get-study-by-id-route",
+                    null,
+                    Map.of(
+                        Constants.CAMEL_HTTP_METHOD, Constants.GET,
+                        Constants.CONTENT_TYPE, Constants.APPLICATION_JSON,
+                        "token", orthancTokenProvider.getToken(),
+                        "orthanc.study.id", orthancStudyId
+                    ),
+                    String.class);
+            JsonNode study = mapper.readTree(studyJson);
+            JsonNode studyTags = study.has("MainDicomTags") ? study.get("MainDicomTags") : null;
+            String accessionNumber = studyTags != null && studyTags.has("AccessionNumber")
+                ? studyTags.get("AccessionNumber").asText("") : "";
+            if (accessionNumber.isEmpty()) {
+                log.debug("No AccessionNumber on study {} - cannot resolve exact procedure", orthancStudyId);
+                return null;
+            }
+
+            String url = openmrsConfig.getOpenmrsBaseUrl()
+                + "/ws/fhir2/R4/ServiceRequest?patient=" + patientUUID + "&_count=100";
+            Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", openmrsConfig.authHeader())
+                .build();
+            try (Response response = new OkHttpClient().newCall(request).execute()) {
+                if (!response.isSuccessful()) return null;
+                JsonNode bundle = mapper.readTree(response.body().string());
+                for (JsonNode entry : bundle.path("entry")) {
+                    JsonNode sr = entry.path("resource");
+                    String srId = sr.path("id").asText("");
+                    String expectedAccession = srId.replace("-", "").length() >= 12
+                        ? srId.replace("-", "").substring(0, 12).toUpperCase() : "";
+                    if (!expectedAccession.equalsIgnoreCase(accessionNumber)) continue;
+                    for (JsonNode coding : sr.path("code").path("coding")) {
+                        String conceptCode = coding.path("code").asText("");
+                        if (RADIOLOGY_CONCEPT_UUIDS.contains(conceptCode)) {
+                            log.info("Resolved SR to exact procedure concept {} via AccessionNumber {}",
+                                conceptCode, accessionNumber);
+                            return conceptCode;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not resolve procedure concept via AccessionNumber for study {}: {}",
+                orthancStudyId, e.getMessage());
+        }
+        return null;
+    }
+
     private String parseSRContent(ObjectMapper mapper, JsonNode mainDicomTags, JsonNode instance) {
-        StringBuilder content = new StringBuilder();
-
-        // Try to get study description
-        if (mainDicomTags.has("StudyDescription")) {
-            content.append("Study: ").append(mainDicomTags.get("StudyDescription").asText()).append("\n");
-        }
-
-        // Try to get series description
+        // OHIF cannot author full DICOM Structured Reports (no ContentSequence
+        // tree with TextValue items - confirmed via live testing). The only
+        // report text OHIF actually sets on an SR series is a short title in
+        // SeriesDescription (e.g. "Chest AP"). Treat that as the report
+        // content directly, rather than parsing a content tree that
+        // OHIF-authored SRs never populate.
         if (mainDicomTags.has("SeriesDescription")) {
-            content.append("Series: ").append(mainDicomTags.get("SeriesDescription").asText()).append("\n");
-        }
-
-        // Get content from TextValue if available
-        if (instance.has("Content")) {
-            JsonNode contentNode = instance.get("Content");
-            if (contentNode.has("TextValue")) {
-                content.append("Report: ").append(contentNode.get("TextValue").asText());
+            String seriesDescription = mainDicomTags.get("SeriesDescription").asText();
+            if (seriesDescription != null && !seriesDescription.isBlank()) {
+                return "Report: " + seriesDescription;
             }
         }
-
-        return content.length() > 0 ? content.toString() : "Radiology report available (SR instance: " + instance.get("ID") + ")";
+        if (mainDicomTags.has("StudyDescription")) {
+            String studyDescription = mainDicomTags.get("StudyDescription").asText();
+            if (studyDescription != null && !studyDescription.isBlank()) {
+                return "Report: " + studyDescription;
+            }
+        }
+        return "Radiology report available (SR instance: " + instance.get("ID") + ")";
     }
 }

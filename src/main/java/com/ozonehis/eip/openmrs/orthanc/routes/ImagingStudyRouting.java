@@ -143,6 +143,13 @@ public class ImagingStudyRouting extends RouteBuilder {
             .setHeader(Constants.CONTENT_TYPE, constant(Constants.APPLICATION_JSON))
             .toD("{{orthanc.baseUrl}}/series/${header.orthanc.series.id}")
             .end();
+        from("direct:orthanc-get-study-by-id-route")
+            .routeId("orthanc-get-study-by-id")
+            .setHeader("token", method(orthancTokenProvider, "getToken"))
+            .setHeader(Constants.CAMEL_HTTP_METHOD, constant(Constants.GET))
+            .setHeader(Constants.CONTENT_TYPE, constant(Constants.APPLICATION_JSON))
+            .toD("{{orthanc.baseUrl}}/studies/${header.orthanc.study.id}")
+            .end();
         from("direct:openmrs-update-observation-route")
             .routeId("openmrs-update-observation")
             .toD(openmrsBaseUrl + "/ws/fhir2/R4/Observation/${header." + Constants.HEADER_OBSERVATION_UUID + "}")

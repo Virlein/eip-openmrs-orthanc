@@ -266,7 +266,14 @@ public class OpenmrsDiagnosticReportHandler {
             ProducerTemplate producerTemplate,
             String patientUUID,
             String reportUUID,
-            String srText) throws JsonProcessingException {
+            String srText,
+            String procedureConceptUuid) throws JsonProcessingException {
+        // Use the exact ordered procedure's concept when known (resolved via
+        // AccessionNumber), so Results shows e.g. "RX01 - Chest X-ray"
+        // instead of the generic "General patient note" - falls back to the
+        // generic concept if the specific order could not be resolved.
+        String observationConceptUuid = (procedureConceptUuid != null && !procedureConceptUuid.isEmpty())
+                ? procedureConceptUuid : Constants.GENERAL_PATIENT_NOTE_CONCEPT_UUID;
 
         // Step 1: get existing DiagnosticReport to find linked observation and encounter
         Map<String, Object> getHeaders = new HashMap<>();
@@ -306,7 +313,7 @@ public class OpenmrsDiagnosticReportHandler {
                     "\"effectiveDateTime\":\"%s\"," +
                     "\"valueString\":\"%s\"}",
                     observationUUID,
-                    Constants.GENERAL_PATIENT_NOTE_CONCEPT_UUID,
+                    observationConceptUuid,
                     patientUUID,
                     encounterRef,
                     java.time.LocalDate.now().toString(),
@@ -321,6 +328,32 @@ public class OpenmrsDiagnosticReportHandler {
             producerTemplate.requestBodyAndHeaders(
                     "direct:openmrs-update-observation-route", updateObsJson, updateObsHeaders, String.class);
             log.info("Updated Observation {} with SR content for DiagnosticReport {}", observationUUID, reportUUID);
+        } else {
+            // No Observation is linked to this DiagnosticReport yet (its
+            // "result" reference never persisted when the report was first
+            // created - a known OpenMRS FHIR2 write-support gap). Create a
+            // fresh Observation carrying the real SR text so the report
+            // content is not silently discarded.
+            String createObsJson = String.format(
+                    "{\"resourceType\":\"Observation\"," +
+                    "\"status\":\"final\"," +
+                    "\"code\":{\"coding\":[{\"code\":\"%s\"}]}," +
+                    "\"subject\":{\"reference\":\"Patient/%s\"}," +
+                    "\"encounter\":{\"reference\":\"Encounter/%s\"}," +
+                    "\"effectiveDateTime\":\"%s\"," +
+                    "\"valueString\":\"%s\"}",
+                    observationConceptUuid,
+                    patientUUID,
+                    encounterRef,
+                    java.time.LocalDate.now().toString(),
+                    srText.replace("\"", "\\\"").replace("\n", "\\n"));
+            Map<String, Object> createObsHeaders = new HashMap<>();
+            createObsHeaders.put(Constants.CAMEL_HTTP_METHOD, "POST");
+            createObsHeaders.put(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON);
+            createObsHeaders.put(Constants.AUTHORIZATION, openmrsConfig.authHeader());
+            producerTemplate.requestBodyAndHeaders(
+                    "direct:openmrs-create-observation-route", createObsJson, createObsHeaders, String.class);
+            log.info("Created new Observation with SR content for DiagnosticReport {} (no prior link existed)", reportUUID);
         }
 
         // Step 4: update DiagnosticReport status to final with conclusion

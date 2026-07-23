@@ -64,6 +64,24 @@ public class ProcessedStudyRepository {
             orthancStudyId);
         log.info("Deleted processed study {}", orthancStudyId);
     }
+    public static class TrackedStudy {
+        public String orthancStudyId;
+        public String patientUuid;
+        public String diagnosticReportUuid;
+    }
+
+    public java.util.List<TrackedStudy> findAllTracked() {
+        return jdbcTemplate.query(
+            "SELECT orthanc_study_id, patient_uuid, diagnostic_report_uuid FROM eip_processed_orthanc_study",
+            (rs, rowNum) -> {
+                TrackedStudy t = new TrackedStudy();
+                t.orthancStudyId = rs.getString("orthanc_study_id");
+                t.patientUuid = rs.getString("patient_uuid");
+                t.diagnosticReportUuid = rs.getString("diagnostic_report_uuid");
+                return t;
+            });
+    }
+
     public void save(String orthancStudyId, String patientUUID, String diagnosticReportUUID) {
         jdbcTemplate.update(
             "INSERT IGNORE INTO eip_processed_orthanc_study (orthanc_study_id, patient_uuid, diagnostic_report_uuid) VALUES (?, ?, ?)",

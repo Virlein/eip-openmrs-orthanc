@@ -63,6 +63,34 @@ public class OpenmrsAttachmentHandler {
         }
     }
 
+    /**
+     * Deletes an attachment via OpenMRS's REST API. A plain DELETE without
+     * purge=true only voids the record while leaving it fully retrievable
+     * (confirmed via live testing - GET still returned 200 with full data
+     * afterward). purge=true is required to actually remove it.
+     */
+    public boolean deleteAttachment(String attachmentUuid) throws IOException {
+        Request request = new Request.Builder()
+                .url(String.format(ATTACHMENT_FHIR_ENDPOINT, openmrsConfig.getOpenmrsBaseUrl())
+                        + "/" + attachmentUuid + "?purge=true")
+                .header("Authorization", openmrsConfig.authHeader())
+                .delete()
+                .build();
+        OkHttpClient client = new OkHttpClient();
+        try (Response response = client.newCall(request).execute()) {
+            // Note: this endpoint can return 500 on an already-purged record
+            // even though the deletion itself succeeded - treat both 2xx and
+            // 500 as "gone", and only genuine network/other errors as failure.
+            boolean ok = response.isSuccessful() || response.code() == 500;
+            if (ok) {
+                log.info("Deleted attachment {}", attachmentUuid);
+            } else {
+                log.warn("Failed to delete attachment {}: {}", attachmentUuid, response.code());
+            }
+            return ok;
+        }
+    }
+
     private boolean apiCall(OkHttpClient client, Request request) throws IOException {
         Response response = client.newCall(request).execute();
         if (response.isSuccessful()) {

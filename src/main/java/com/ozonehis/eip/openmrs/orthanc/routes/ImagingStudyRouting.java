@@ -10,6 +10,7 @@ package com.ozonehis.eip.openmrs.orthanc.routes;
 import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.ozonehis.eip.openmrs.orthanc.converters.ResourceConverter;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyDeletionProcessor;
+import com.ozonehis.eip.openmrs.orthanc.processors.OrphanedStudyCleanupProcessor;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingSRProcessor;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
 import com.ozonehis.eip.openmrs.orthanc.config.CursorStore;
@@ -31,6 +32,8 @@ public class ImagingStudyRouting extends RouteBuilder {
 
     @Autowired
     private ImagingStudyDeletionProcessor imagingStudyDeletionProcessor;
+    @Autowired
+    private OrphanedStudyCleanupProcessor orphanedStudyCleanupProcessor;
     @Autowired
     private ImagingSRProcessor imagingSRProcessor;
     @Autowired
@@ -70,6 +73,18 @@ public class ImagingStudyRouting extends RouteBuilder {
             .to("direct:orthanc-get-changes-route")
             .process(imagingStudyDeletionProcessor)
             .log(LoggingLevel.INFO, "Polling Orthanc changes completed.")
+            .end();
+
+        // Orthanc's /changes feed does not report study deletions (confirmed
+        // by live testing), so ImagingStudyDeletionProcessor above never
+        // actually fires. This route independently re-checks every tracked
+        // study's existence via a direct GET and cleans up any that were
+        // deleted, keeping OpenMRS DiagnosticReports in sync with Orthanc.
+        from("scheduler:orphanedStudyCleanup?initialDelay=30000&delay=60000")
+            .routeId("orphaned-study-cleanup")
+            .log(LoggingLevel.INFO, "Checking for orphaned/deleted studies...")
+            .process(orphanedStudyCleanupProcessor)
+            .log(LoggingLevel.INFO, "Orphaned study cleanup check complete.")
             .end();
 
         from("scheduler:srDetection?initialDelay=20000&delay=10000")

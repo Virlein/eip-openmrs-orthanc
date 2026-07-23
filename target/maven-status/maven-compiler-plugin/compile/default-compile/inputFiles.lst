@@ -27,6 +27,7 @@
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingSRProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyDeletionProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyProcessor.java
+/Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/OrphanedStudyCleanupProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/RadiologyOrderWorklistProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/repository/ProcessedStudyRepository.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/routes/ImagingStudyRouting.java

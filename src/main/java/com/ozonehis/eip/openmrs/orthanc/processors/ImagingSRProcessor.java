@@ -15,6 +15,7 @@ import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
 import com.ozonehis.eip.openmrs.orthanc.config.CursorStore;
 import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsDiagnosticReportHandler;
 import com.ozonehis.eip.openmrs.orthanc.repository.ProcessedStudyRepository;
+import com.ozonehis.eip.openmrs.orthanc.repository.ProcessedSRRepository;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.Exchange;
@@ -47,6 +48,8 @@ public class ImagingSRProcessor implements Processor {
 
     @Autowired
     private ProcessedStudyRepository processedStudyRepository;
+    @Autowired
+    private ProcessedSRRepository processedSRRepository;
 
     @Autowired
     private OpenmrsConfig openmrsConfig;
@@ -100,6 +103,10 @@ public class ImagingSRProcessor implements Processor {
     }
 
     private void handlePotentialSR(ProducerTemplate producerTemplate, ObjectMapper mapper, String instanceId) {
+        if (processedSRRepository.exists(instanceId)) {
+            log.debug("SR instance {} already processed, skipping", instanceId);
+            return;
+        }
         try {
             // Fetch instance metadata from Orthanc
             Map<String, Object> headers = new HashMap<>();
@@ -177,6 +184,8 @@ public class ImagingSRProcessor implements Processor {
             // Update DiagnosticReport and Observation
             openmrsDiagnosticReportHandler.updateDiagnosticReportWithSR(
                     producerTemplate, patientUUID, reportUUID, srText, procedureConceptUuid);
+
+            processedSRRepository.save(instanceId);
 
 
         } catch (Exception e) {

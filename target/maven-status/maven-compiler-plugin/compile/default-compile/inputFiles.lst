@@ -7,7 +7,6 @@
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/config/OrthancConfig.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/config/OrthancTokenProvider.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/converters/ResourceConverter.java
-/Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsAttachmentDeleteHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsAttachmentHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsDiagnosticReportHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsObsHandler.java

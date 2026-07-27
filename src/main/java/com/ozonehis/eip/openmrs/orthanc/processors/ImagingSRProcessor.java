@@ -181,9 +181,9 @@ public class ImagingSRProcessor implements Processor {
             String procedureConceptUuid = resolveProcedureConceptFromAccessionNumber(
                     producerTemplate, mapper, parentStudy, patientUUID);
 
-            // Update DiagnosticReport and Observation
+            // Record the SR result as a new Observation
             openmrsDiagnosticReportHandler.updateDiagnosticReportWithSR(
-                    producerTemplate, patientUUID, reportUUID, srText, procedureConceptUuid);
+                    producerTemplate, patientUUID, srText, procedureConceptUuid);
 
             processedSRRepository.save(instanceId);
 

@@ -28,14 +28,14 @@ import java.util.List;
 
 /**
  * Orthanc's /changes REST feed does not report study deletions (confirmed by
- * live testing). ImagingStudyDeletionProcessor listens for a "Deletion"
- * change event that Orthanc never actually emits, so it never fires.
+ * live testing) - an earlier processor that listened for a "Deletion" change
+ * event was removed since Orthanc never actually emits one.
  *
  * This processor instead periodically re-checks every study we've previously
  * tracked in eip_processed_orthanc_study by doing a lightweight existence
- * check (HEAD /studies/{id}) against Orthanc. If a study no longer exists
- * (404), its corresponding OpenMRS DiagnosticReport is deleted and the
- * tracking record is removed, keeping the two systems in sync.
+ * check (GET /studies/{id}) against Orthanc. If a study no longer exists
+ * (404), its corresponding result Observation and attachment are deleted and
+ * the tracking record is removed, keeping the two systems in sync.
  */
 @Slf4j
 @Component
@@ -77,11 +77,11 @@ public class OrphanedStudyCleanupProcessor implements Processor {
                 String diagnosticReportUuid = entry.diagnosticReportUuid;
 
                 if (!studyExistsInOrthanc(orthancStudyId)) {
-                    log.info("Orthanc study {} no longer exists - cleaning up DiagnosticReport {} and any linked attachments",
+                    log.info("Orthanc study {} no longer exists - cleaning up result Observation {} and any linked attachments",
                         orthancStudyId, diagnosticReportUuid);
                     try {
                         if (diagnosticReportUuid != null && !diagnosticReportUuid.isEmpty()) {
-                            openmrsDiagnosticReportHandler.deleteDiagnosticReport(producerTemplate, diagnosticReportUuid);
+                            openmrsDiagnosticReportHandler.deleteResult(diagnosticReportUuid);
                         }
                         deleteAttachmentsForStudy(producerTemplate, patientUuid, orthancStudyId);
                         processedStudyRepository.delete(orthancStudyId);

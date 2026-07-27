@@ -9,7 +9,6 @@ package com.ozonehis.eip.openmrs.orthanc.routes;
 
 import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.ozonehis.eip.openmrs.orthanc.converters.ResourceConverter;
-import com.ozonehis.eip.openmrs.orthanc.processors.ImagingStudyDeletionProcessor;
 import com.ozonehis.eip.openmrs.orthanc.processors.OrphanedStudyCleanupProcessor;
 import com.ozonehis.eip.openmrs.orthanc.processors.ImagingSRProcessor;
 import com.ozonehis.eip.openmrs.orthanc.config.OrthancTokenProvider;
@@ -30,8 +29,6 @@ public class ImagingStudyRouting extends RouteBuilder {
     @Autowired
     private ImagingStudyProcessor imagingStudyProcessor;
 
-    @Autowired
-    private ImagingStudyDeletionProcessor imagingStudyDeletionProcessor;
     @Autowired
     private OrphanedStudyCleanupProcessor orphanedStudyCleanupProcessor;
     @Autowired
@@ -66,14 +63,6 @@ public class ImagingStudyRouting extends RouteBuilder {
             .log(LoggingLevel.INFO, "Polling ImagingStudy completed.")
             .end();
 
-        from("scheduler:studyDeletion?initialDelay=15000&delay=10000")
-            .routeId("poll-orthanc-changes")
-            .log(LoggingLevel.INFO, "Polling Orthanc changes started...")
-            .setHeader(Constants.HEADER_STUDIES_SINCE, method(cursorStore, "getChangesCursor"))
-            .to("direct:orthanc-get-changes-route")
-            .process(imagingStudyDeletionProcessor)
-            .log(LoggingLevel.INFO, "Polling Orthanc changes completed.")
-            .end();
 
         // Orthanc's /changes feed does not report study deletions (confirmed
         // by live testing), so ImagingStudyDeletionProcessor above never
@@ -120,6 +109,16 @@ public class ImagingStudyRouting extends RouteBuilder {
         from("direct:openmrs-create-observation-route")
             .routeId("openmrs-create-observation")
             .toD(openmrsBaseUrl + "/ws/fhir2/R4/Observation")
+            .end();
+        // Native REST equivalent - does not require an Encounter, unlike the
+        // FHIR route above. Confirmed via live testing that OpenMRS's Obs
+        // data model has no actual requirement for one; only the FHIR schema
+        // does. Used by saveResult() as a lighter-weight replacement for the
+        // old createDiagnosticReport()+createObservationAndLinkToReport()
+        // chain.
+        from("direct:openmrs-create-obs-native-route")
+            .routeId("openmrs-create-obs-native")
+            .toD(openmrsBaseUrl + "/ws/rest/v1/obs")
             .end();
         from("direct:openmrs-update-diagnostic-report-route")
             .routeId("openmrs-update-diagnostic-report")

@@ -7,6 +7,7 @@
  */
 package com.ozonehis.eip.openmrs.orthanc.processors;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.ozonehis.eip.openmrs.orthanc.Constants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsAttachmentHandler;
 import com.ozonehis.eip.openmrs.orthanc.handlers.openmrs.OpenmrsDiagnosticReportHandler;
@@ -95,14 +96,16 @@ public class ImagingStudyProcessor implements Processor {
                         log.warn("Could not fetch series for study {}: {}", study.id, e.getMessage());
                     }
                 }
-                openmrsDiagnosticReportHandler.createDiagnosticReport(
+                String viewerUrl = orthancPublicUrl
+                        + "/stone-webviewer/index.html?study=" + studyInstanceUID
+                        + "&orthancId=" + study.id;
+                String resultUUID = openmrsDiagnosticReportHandler.saveResult(
                         producerTemplate,
                         patientUUID,
-                        studyInstanceUID,
-                        study.id,
-                        orthancPublicUrl,
-                        modality,
+                        Constants.GENERAL_PATIENT_NOTE_CONCEPT_UUID,
+                        "DICOM study available. View at: " + viewerUrl,
                         studyDate);
+                processedStudyRepository.save(study.id, patientUUID, resultUUID);
                 // Upload preview image as attachment
                 try {
                     if (!doesObsExists(producerTemplate, patientUUID, studyInstanceUID)) {

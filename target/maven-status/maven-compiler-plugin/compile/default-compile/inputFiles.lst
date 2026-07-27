@@ -11,6 +11,7 @@
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsDiagnosticReportHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsObsHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsPatientHandler.java
+/Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/openmrs/OpenmrsRestDeleteHelper.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/orthanc/OrthancImagingStudyHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/handlers/orthanc/OrthancWorklistHandler.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/models/diagnosticreport/DiagnosticReportBundle.java
@@ -24,7 +25,6 @@
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/models/series/Series.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/odoo/OdooPaymentGate.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingSRProcessor.java
-/Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyDeletionProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/ImagingStudyProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/OrphanedStudyCleanupProcessor.java
 /Users/v.ameil/Developer/eip-openmrs-orthanc-v2/src/main/java/com/ozonehis/eip/openmrs/orthanc/processors/RadiologyOrderWorklistProcessor.java

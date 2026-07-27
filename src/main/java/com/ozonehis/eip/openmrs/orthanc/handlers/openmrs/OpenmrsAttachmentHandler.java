@@ -34,6 +34,9 @@ public class OpenmrsAttachmentHandler {
     @Autowired
     private OpenmrsConfig openmrsConfig;
 
+    @Autowired
+    private OpenmrsRestDeleteHelper deleteHelper;
+
     // TODO: Use Apache Camel Route instead of okhttp3 (Error: payload content too big)
     public void saveAttachment(byte[] binaryData, String patientID, String studyID, String orthancInternalId) throws IOException {
         MultipartBody requestBody = new MultipartBody.Builder()
@@ -70,25 +73,7 @@ public class OpenmrsAttachmentHandler {
      * afterward). purge=true is required to actually remove it.
      */
     public boolean deleteAttachment(String attachmentUuid) throws IOException {
-        Request request = new Request.Builder()
-                .url(String.format(ATTACHMENT_FHIR_ENDPOINT, openmrsConfig.getOpenmrsBaseUrl())
-                        + "/" + attachmentUuid + "?purge=true")
-                .header("Authorization", openmrsConfig.authHeader())
-                .delete()
-                .build();
-        OkHttpClient client = new OkHttpClient();
-        try (Response response = client.newCall(request).execute()) {
-            // Note: this endpoint can return 500 on an already-purged record
-            // even though the deletion itself succeeded - treat both 2xx and
-            // 500 as "gone", and only genuine network/other errors as failure.
-            boolean ok = response.isSuccessful() || response.code() == 500;
-            if (ok) {
-                log.info("Deleted attachment {}", attachmentUuid);
-            } else {
-                log.warn("Failed to delete attachment {}: {}", attachmentUuid, response.code());
-            }
-            return ok;
-        }
+        return deleteHelper.deleteByUuid("attachment", attachmentUuid, "attachment");
     }
 
     private boolean apiCall(OkHttpClient client, Request request) throws IOException {

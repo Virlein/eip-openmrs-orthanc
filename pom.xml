@@ -98,7 +98,6 @@
                     <exclude>logback.xml</exclude>
                     <exclude>logback.xml</exclude>
                     <exclude>logback-test.xml</exclude>
-                    <exclude>liquibase-watcher.xml</exclude>
                   </excludes>
                 </filter>
               </filters>
